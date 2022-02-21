@@ -38,67 +38,71 @@ final class PermissionManager implements PluginRegistry.ActivityResultListener, 
 
     @Override
     public boolean onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode != PermissionConstants.PERMISSION_CODE_IGNORE_BATTERY_OPTIMIZATIONS &&
+        try {
+            if (requestCode != PermissionConstants.PERMISSION_CODE_IGNORE_BATTERY_OPTIMIZATIONS &&
                 requestCode != PermissionConstants.PERMISSION_CODE_MANAGE_EXTERNAL_STORAGE &&
                 requestCode != PermissionConstants.PERMISSION_CODE_SYSTEM_ALERT_WINDOW &&
                 requestCode != PermissionConstants.PERMISSION_CODE_REQUEST_INSTALL_PACKAGES &&
                 requestCode != PermissionConstants.PERMISSION_CODE_ACCESS_NOTIFICATION_POLICY) {
-            return false;
-        }
+                return false;
+            }
 
-        int status = resultCode == Activity.RESULT_OK
+            int status = resultCode == Activity.RESULT_OK
                 ? PermissionConstants.PERMISSION_STATUS_GRANTED
                 : PermissionConstants.PERMISSION_STATUS_DENIED;
 
-        int permission;
+            int permission;
 
-        if (requestCode == PermissionConstants.PERMISSION_CODE_IGNORE_BATTERY_OPTIMIZATIONS) {
-            permission = PermissionConstants.PERMISSION_GROUP_IGNORE_BATTERY_OPTIMIZATIONS;
-        } else if (requestCode == PermissionConstants.PERMISSION_CODE_MANAGE_EXTERNAL_STORAGE) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                status = Environment.isExternalStorageManager()
+            if (requestCode == PermissionConstants.PERMISSION_CODE_IGNORE_BATTERY_OPTIMIZATIONS) {
+                permission = PermissionConstants.PERMISSION_GROUP_IGNORE_BATTERY_OPTIMIZATIONS;
+            } else if (requestCode == PermissionConstants.PERMISSION_CODE_MANAGE_EXTERNAL_STORAGE) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    status = Environment.isExternalStorageManager()
                         ? PermissionConstants.PERMISSION_STATUS_GRANTED
                         : PermissionConstants.PERMISSION_STATUS_DENIED;
+                } else {
+                    return false;
+                }
+                permission = PermissionConstants.PERMISSION_GROUP_MANAGE_EXTERNAL_STORAGE;
+            } else if (requestCode == PermissionConstants.PERMISSION_CODE_SYSTEM_ALERT_WINDOW) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    status = Settings.canDrawOverlays(activity)
+                        ? PermissionConstants.PERMISSION_STATUS_GRANTED
+                        : PermissionConstants.PERMISSION_STATUS_DENIED;
+                    permission = PermissionConstants.PERMISSION_GROUP_SYSTEM_ALERT_WINDOW;
+                } else {
+                    return false;
+                }
+            } else if (requestCode == PermissionConstants.PERMISSION_CODE_REQUEST_INSTALL_PACKAGES) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    status = activity.getPackageManager().canRequestPackageInstalls()
+                        ? PermissionConstants.PERMISSION_STATUS_GRANTED
+                        : PermissionConstants.PERMISSION_STATUS_DENIED;
+                    permission = PermissionConstants.PERMISSION_GROUP_REQUEST_INSTALL_PACKAGES;
+                } else {
+                    return false;
+                }
+            } else if (requestCode == PermissionConstants.PERMISSION_CODE_ACCESS_NOTIFICATION_POLICY) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    NotificationManager notificationManager = (NotificationManager) activity.getSystemService(Application.NOTIFICATION_SERVICE);
+                    status = notificationManager.isNotificationPolicyAccessGranted()
+                        ? PermissionConstants.PERMISSION_STATUS_GRANTED
+                        : PermissionConstants.PERMISSION_STATUS_DENIED;
+                    permission = PermissionConstants.PERMISSION_GROUP_ACCESS_NOTIFICATION_POLICY;
+                } else {
+                    return false;
+                }
             } else {
                 return false;
             }
-            permission = PermissionConstants.PERMISSION_GROUP_MANAGE_EXTERNAL_STORAGE;
-        } else if (requestCode == PermissionConstants.PERMISSION_CODE_SYSTEM_ALERT_WINDOW) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                status = Settings.canDrawOverlays(activity)
-                        ? PermissionConstants.PERMISSION_STATUS_GRANTED
-                        : PermissionConstants.PERMISSION_STATUS_DENIED;
-                permission = PermissionConstants.PERMISSION_GROUP_SYSTEM_ALERT_WINDOW;
-            } else {
-                return false;
-            }
-        } else if (requestCode == PermissionConstants.PERMISSION_CODE_REQUEST_INSTALL_PACKAGES) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                status = activity.getPackageManager().canRequestPackageInstalls()
-                        ? PermissionConstants.PERMISSION_STATUS_GRANTED
-                        : PermissionConstants.PERMISSION_STATUS_DENIED;
-                permission = PermissionConstants.PERMISSION_GROUP_REQUEST_INSTALL_PACKAGES;
-            } else {
-                return false;
-            }
-        } else if (requestCode == PermissionConstants.PERMISSION_CODE_ACCESS_NOTIFICATION_POLICY) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                NotificationManager notificationManager = (NotificationManager) activity.getSystemService(Application.NOTIFICATION_SERVICE);
-                status = notificationManager.isNotificationPolicyAccessGranted()
-                        ? PermissionConstants.PERMISSION_STATUS_GRANTED
-                        : PermissionConstants.PERMISSION_STATUS_DENIED;
-                permission = PermissionConstants.PERMISSION_GROUP_ACCESS_NOTIFICATION_POLICY;
-            } else {
-                return false;
-            }
-        } else {
+
+            HashMap<Integer, Integer> results = new HashMap<>();
+            results.put(permission, status);
+            successCallback.onSuccess(results);
+            return true;
+        } catch (Exception e) {
             return false;
         }
-
-        HashMap<Integer, Integer> results = new HashMap<>();
-        results.put(permission, status);
-        successCallback.onSuccess(results);
-        return true;
     }
 
     @Override
